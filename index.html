@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pogoda</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            color: #ffffff; 
+            text-align: center; 
+            background-color: #2b2b2b; 
+            overflow: hidden; 
+            margin: 0; 
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .weather-widget { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            width: 100%;
+        }
+        .city { font-size: 16px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
+        .temp { font-size: 32px; font-weight: bold; margin: 5px 0; }
+        .wind { font-size: 12px; margin-top: 5px; opacity: 0.7; }
+        .icon-container { font-size: 40px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+
+<div class="weather-widget">
+  <div class="city">Bieszczady (Ustrzyki G.)</div>
+  <div class="icon-container" id="icon">⏳</div>
+  <div class="temp" id="temp">--</div>
+  <div class="wind" id="wind">Ładowanie...</div>
+</div>
+
+<script>
+  const lat = 49.10;
+  const lon = 22.65;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&windspeed_unit=kmh`;
+
+  function getIcon(code) {
+      if (code === 0) return '☀️'; 
+      if (code >= 1 && code <= 3) return '⛅'; 
+      if (code >= 45 && code <= 48) return '🌫️'; 
+      if (code >= 51 && code <= 67) return '🌧️'; 
+      if (code >= 71 && code <= 77) return '❄️'; 
+      if (code >= 80 && code <= 82) return '🌦️'; 
+      if (code >= 95) return '⛈️'; 
+      return '🌡️';
+  }
+
+  fetch(url)
+    .then(response => response.json())
+    .then(data => {
+      const w = data.current_weather;
+      document.getElementById('temp').innerText = Math.round(w.temperature) + '°C';
+      document.getElementById('wind').innerText = 'Wiatr: ' + Math.round(w.windspeed) + ' km/h';
+      document.getElementById('icon').innerText = getIcon(w.weathercode);
+    })
+    .catch(error => {
+      document.getElementById('temp').innerText = "Błąd";
+    });
+</script>
+
+</body>
+</html>
