@@ -3,70 +3,244 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pogoda</title>
+    <title>Pogoda Ustrzyki Górne</title>
     <style>
+        /* --- STYLE CSS --- */
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             color: #ffffff; 
-            text-align: center; 
             background-color: #2b2b2b; 
-            overflow: hidden; 
             margin: 0; 
             padding: 0;
             height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Nagłówek i Tytuł */
+        .header {
+            text-align: center;
+            padding: 10px 0 5px 0;
+            background-color: #2b2b2b;
+            z-index: 10;
+        }
+        .city-title {
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        /* Zakładki (Tabs) */
+        .tabs {
             display: flex;
             justify-content: center;
+            border-bottom: 1px solid #444;
+            background-color: #2b2b2b;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #aaa;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 13px;
+            border-bottom: 2px solid transparent;
+            transition: 0.3s;
+        }
+        .tab-btn:hover { color: #fff; }
+        .tab-btn.active {
+            color: #4facfe;
+            border-bottom: 2px solid #4facfe;
+            font-weight: bold;
+        }
+
+        /* Kontenery z treścią */
+        .content {
+            flex-grow: 1;
+            overflow-y: auto; /* Przewijanie dla długich list */
+            padding: 10px;
+            display: none; /* Domyślnie ukryte */
+            scrollbar-width: thin; /* Cienki pasek przewijania */
+            scrollbar-color: #555 #2b2b2b;
+        }
+        .content.active { display: block; }
+
+        /* Stylizacja paska przewijania (Chrome/Safari) */
+        .content::-webkit-scrollbar { width: 6px; }
+        .content::-webkit-scrollbar-track { background: #2b2b2b; }
+        .content::-webkit-scrollbar-thumb { background-color: #555; border-radius: 10px; }
+
+        /* Widok: TERAZ */
+        .current-view {
+            display: flex;
+            flex-direction: column;
             align-items: center;
-        }
-        .weather-widget { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
             justify-content: center;
-            width: 100%;
+            height: 100%;
         }
-        .city { font-size: 16px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
-        .temp { font-size: 32px; font-weight: bold; margin: 5px 0; }
-        .wind { font-size: 12px; margin-top: 5px; opacity: 0.7; }
-        .icon-container { font-size: 40px; margin: 5px 0; }
+        .big-temp { font-size: 42px; font-weight: bold; margin: 5px 0; }
+        .big-icon { font-size: 50px; margin: 10px 0; }
+        .desc { font-size: 14px; opacity: 0.8; }
+
+        /* Widok: Listy (12h i 7 dni) */
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 5px;
+            border-bottom: 1px solid #3d3d3d;
+            font-size: 14px;
+        }
+        .list-item:last-child { border-bottom: none; }
+        .list-time { width: 80px; font-weight: 500; }
+        .list-icon { font-size: 18px; }
+        .list-temp { font-weight: bold; }
+        .min-max { font-size: 12px; opacity: 0.7; }
+
+        .loading { text-align: center; margin-top: 20px; color: #888; }
     </style>
 </head>
 <body>
 
-<div class="weather-widget">
-  <div class="city">Bieszczady (Ustrzyki G.)</div>
-  <div class="icon-container" id="icon">⏳</div>
-  <div class="temp" id="temp">--</div>
-  <div class="wind" id="wind">Ładowanie...</div>
-</div>
+    <div class="header">
+        <div class="city-title">Ustrzyki Górne</div>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="openTab('tab-now', this)">Teraz</button>
+            <button class="tab-btn" onclick="openTab('tab-12h', this)">12h</button>
+            <button class="tab-btn" onclick="openTab('tab-7d', this)">7 dni</button>
+        </div>
+    </div>
+
+    <div id="tab-now" class="content active">
+        <div class="loading">Ładowanie...</div>
+    </div>
+
+    <div id="tab-12h" class="content">
+        <div class="loading">Ładowanie...</div>
+    </div>
+
+    <div id="tab-7d" class="content">
+        <div class="loading">Ładowanie...</div>
+    </div>
 
 <script>
-  const lat = 49.10;
-  const lon = 22.65;
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&windspeed_unit=kmh`;
+    // --- KONFIGURACJA ---
+    const lat = 49.10;
+    const lon = 22.65;
+    // URL pobiera teraz: bieżące, godzinowe (na 24h) i dzienne (na 7 dni)
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
 
-  function getIcon(code) {
-      if (code === 0) return '☀️'; 
-      if (code >= 1 && code <= 3) return '⛅'; 
-      if (code >= 45 && code <= 48) return '🌫️'; 
-      if (code >= 51 && code <= 67) return '🌧️'; 
-      if (code >= 71 && code <= 77) return '❄️'; 
-      if (code >= 80 && code <= 82) return '🌦️'; 
-      if (code >= 95) return '⛈️'; 
-      return '🌡️';
-  }
+    // --- FUNKCJE POMOCNICZE ---
 
-  fetch(url)
-    .then(response => response.json())
-    .then(data => {
-      const w = data.current_weather;
-      document.getElementById('temp').innerText = Math.round(w.temperature) + '°C';
-      document.getElementById('wind').innerText = 'Wiatr: ' + Math.round(w.windspeed) + ' km/h';
-      document.getElementById('icon').innerText = getIcon(w.weathercode);
-    })
-    .catch(error => {
-      document.getElementById('temp').innerText = "Błąd";
-    });
+    function getIcon(code) {
+        if (code === 0) return '☀️'; 
+        if (code >= 1 && code <= 3) return '⛅'; 
+        if (code >= 45 && code <= 48) return '🌫️'; 
+        if (code >= 51 && code <= 67) return '🌧️'; 
+        if (code >= 71 && code <= 77) return '❄️'; 
+        if (code >= 80 && code <= 82) return '🌦️'; 
+        if (code >= 95) return '⛈️'; 
+        return '🌡️';
+    }
+
+    function getDayName(dateString) {
+        const days = ['Niedz.', 'Pon.', 'Wt.', 'Śr.', 'Czw.', 'Pt.', 'Sob.'];
+        const d = new Date(dateString);
+        return days[d.getDay()];
+    }
+
+    // --- LOGIKA ZAKŁADEK ---
+    window.openTab = function(tabId, btnElement) {
+        // Ukryj wszystkie treści
+        document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+        // Pokaż wybraną treść
+        document.getElementById(tabId).classList.add('active');
+        
+        // Zmień styl przycisków
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        btnElement.classList.add('active');
+    }
+
+    // --- POBIERANIE DANYCH ---
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            renderCurrent(data.current_weather);
+            renderHourly(data.hourly);
+            renderDaily(data.daily);
+        })
+        .catch(err => {
+            console.error(err);
+            document.querySelector('.header').innerHTML += '<br><span style="color:red; font-size:12px">Błąd pobierania danych</span>';
+        });
+
+    // 1. Renderowanie "TERAZ"
+    function renderCurrent(w) {
+        const html = `
+            <div class="current-view">
+                <div class="big-icon">${getIcon(w.weathercode)}</div>
+                <div class="big-temp">${Math.round(w.temperature)}°C</div>
+                <div class="desc">Wiatr: ${Math.round(w.windspeed)} km/h</div>
+            </div>
+        `;
+        document.getElementById('tab-now').innerHTML = html;
+    }
+
+    // 2. Renderowanie "12h"
+    function renderHourly(h) {
+        let html = '';
+        const currentHour = new Date().getHours();
+        
+        // Szukamy indeksu obecnej godziny w danych API
+        // API zwraca czas w formacie ISO, ale indeksy zazwyczaj pokrywają się z godzinami od 0:00
+        // Dla pewności weźmiemy po prostu 12 kolejnych godzin od "teraz"
+        
+        // Open-Meteo zwraca dane od północy. Więc indeks = currentHour.
+        // Wyświetlamy 12 kolejnych godzin
+        for (let i = currentHour; i < currentHour + 12; i++) {
+            // Zabezpieczenie, gdybyśmy wyszli poza zakres (np. koniec dnia)
+            if (!h.time[i]) break; 
+
+            const timeRaw = h.time[i]; // np. "2023-10-27T14:00"
+            const timeObj = new Date(timeRaw);
+            const hourString = timeObj.getHours() + ":00";
+            
+            html += `
+                <div class="list-item">
+                    <div class="list-time">${hourString}</div>
+                    <div class="list-icon">${getIcon(h.weathercode[i])}</div>
+                    <div class="list-temp">${Math.round(h.temperature_2m[i])}°C</div>
+                </div>
+            `;
+        }
+        document.getElementById('tab-12h').innerHTML = html;
+    }
+
+    // 3. Renderowanie "7 Dni"
+    function renderDaily(d) {
+        let html = '';
+        // Pętla przez 7 dni
+        for (let i = 0; i < 7; i++) {
+            if (!d.time[i]) break;
+
+            const dayName = (i === 0) ? 'Dziś' : getDayName(d.time[i]);
+            
+            html += `
+                <div class="list-item">
+                    <div class="list-time">${dayName}</div>
+                    <div class="list-icon">${getIcon(d.weathercode[i])}</div>
+                    <div class="list-temp">
+                        ${Math.round(d.temperature_2m_max[i])}° 
+                        <span class="min-max">/ ${Math.round(d.temperature_2m_min[i])}°</span>
+                    </div>
+                </div>
+            `;
+        }
+        document.getElementById('tab-7d').innerHTML = html;
+    }
 </script>
 
 </body>
